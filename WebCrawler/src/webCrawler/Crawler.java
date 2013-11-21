@@ -13,6 +13,9 @@ import java.util.regex.Pattern;
 
 public class Crawler {
 	private static final int MAX_CHILD_URLS = 30;
+	private static final String ANCHOR = "<a href=\"";
+	private static final int ANCHOR_LENGTH = ANCHOR.length();
+	private static final int THROTTLE = 500;
 	
 	private URL url;
 	private Map<String, Integer> words;
@@ -24,7 +27,7 @@ public class Crawler {
 	
 	public Crawler(URL paramURL) throws IOException {
 		this.url = paramURL;
-		this.words = new HashMap<String, Integer>();
+		this.words = null;
 		this.disallowed = getDisallowedURLs();
 	}
 	
@@ -34,12 +37,45 @@ public class Crawler {
 	
 	public void setURL(URL paramURL) throws IOException {
 		this.url = paramURL;
+		this.words = null;
 		this.disallowed = getDisallowedURLs();
 	}
 	
-	public void crawl() throws IOException {
-		System.out.println(getDisallowedURLs());
-		System.out.println(getChildURLs());
+	public Map<String, Integer> crawl() throws IOException {
+		if(words == null) {
+			words = new HashMap<String, Integer>();
+			int i = 1;
+			List<URL> urls = getChildURLs();
+			urls.add(0, url);
+			System.out.println("Crawled 0 of " + urls.size() + " URLs.");
+			for(URL u : urls) {
+				try {
+					Thread.sleep(THROTTLE);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				subCrawl(u);
+				System.out.println("Crawled " + i + " of " + urls.size() + " URLs.");
+				i++;
+			}
+		}
+		return words;
+	}
+	
+	private void subCrawl(URL paramURL) throws IOException {
+		List<String> wordsList = getWords(getHTML(paramURL.openStream()));
+		
+		for(String word : wordsList) {
+			addWord(word);
+		}
+	}
+	
+	private void addWord(String word) {
+		if(words.containsKey(word)) {
+			words.put(word, words.get(word)+1);
+		} else {
+			words.put(word, 1);
+		}
 	}
 	
 	private String getHTML() throws IOException {
@@ -63,7 +99,7 @@ public class Crawler {
 		return str;
 	}
 	
-	private List<String> parseHTML(String s) {
+	private List<String> getWords(String s) {
 		List<String> wordList = new ArrayList<String>();
 		
 		Pattern p = Pattern.compile("<body.*?>(.|\n|\r).*</body.*?>", Pattern.DOTALL);
@@ -100,17 +136,25 @@ public class Crawler {
 		return output;
 	}
 	
-	private List<String> getChildURLs() throws IOException {
+	private List<URL> getChildURLs() throws IOException {
 		String s = getHTML(), t;
-		List<String> output = new ArrayList<String>();
+		List<URL> output = new ArrayList<URL>();
 		int index = 0;
 		for(int i = 0; i < MAX_CHILD_URLS; i++) {
-			index = s.indexOf("<a href=", index+10);
+			index = s.indexOf(ANCHOR, index+ANCHOR_LENGTH);
 			if(index == -1) break;
-			t = s.substring(index+9, s.indexOf('\"', index+10));
+			
+			if(s.charAt(index+ANCHOR_LENGTH) == '#') continue;
+			
+			t = s.substring(index+ANCHOR_LENGTH, s.indexOf('\"', index+ANCHOR_LENGTH));
 			if(!disallowed.contains(t)) {
-				output.add(t);
+				if(t.startsWith("http://")) {
+					output.add(new URL(t));
+				} else {
+					output.add(new URL(url.getProtocol() + "://" + url.getHost() + t));
+				}
 			} else {
+				System.out.println(t);
 				i--;
 			}
 		}
