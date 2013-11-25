@@ -20,15 +20,17 @@ public class Crawler {
 	private URL url;
 	private Map<String, Integer> words;
 	private List<String> disallowed;
+	private Screen screen;
 	
-	public Crawler(String paramURL) throws IOException {
-		this(new URL(paramURL));
+	public Crawler(String paramURL, Screen screen) throws IOException {
+		this(new URL(paramURL), screen);
 	}
 	
-	public Crawler(URL paramURL) throws IOException {
+	public Crawler(URL paramURL, Screen screen) throws IOException {
 		this.url = paramURL;
 		this.words = null;
 		this.disallowed = getDisallowedURLs();
+		this.screen = screen;
 	}
 	
 	public void setURL(String paramURL) throws IOException {
@@ -44,10 +46,10 @@ public class Crawler {
 	public Map<String, Integer> crawl() throws IOException {
 		if(words == null) {
 			words = new HashMap<String, Integer>();
-			int i = 1;
 			List<URL> urls = getChildURLs();
+			int i = 1, size = urls.size()+1;
 			urls.add(0, url);
-			System.out.println("Crawled 0 of " + urls.size() + " URLs.");
+			screen.showProgress("Crawled 0 of " + size + " URLs.");
 			for(URL u : urls) {
 				try {
 					Thread.sleep(THROTTLE);
@@ -55,7 +57,7 @@ public class Crawler {
 					Thread.currentThread().interrupt();
 				}
 				subCrawl(u);
-				System.out.println("Crawled " + i + " of " + urls.size() + " URLs.");
+				screen.showProgress("Crawled " + i + " of " + size + " URLs.");
 				i++;
 			}
 		}
