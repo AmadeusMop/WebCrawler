@@ -58,8 +58,6 @@ public class Screen {
 	
 	private Crawler crawler;
 	
-	private int minFreq;
-	
 	public Screen(Crawler p) throws IOException {
 		this();
 		crawler = p;
@@ -68,7 +66,6 @@ public class Screen {
 	public Screen() throws IOException {
 		crawler = new Crawler("http://en.wikipedia.org/", this);
 		words = new HashMap<String, Integer>();
-		minFreq = 10;
 		URLs = new HashSet<String>();
 		
 		frame = new JFrame("Web Reader");
@@ -146,10 +143,6 @@ public class Screen {
 		}
 	}
 	
-	public void setMinFreq(int f) {
-		this.minFreq = f;
-	}
-	
 	public void showError(String s) {
 		wordsList.removeAll();
 		showMessage(s);
@@ -164,7 +157,7 @@ public class Screen {
 		}
 		Iterator<String> iter = sortedWordsList.iterator();
 		String s;
-		int v;
+		int v, minFreq = (Integer)freqbox.getValue();
 		boolean empty = true, b = filterCheckbox.isSelected();
 		
 		while(iter.hasNext()) {
@@ -200,8 +193,6 @@ public class Screen {
 	
 	void submit() throws IOException {
 		showMessage("");
-		int f = (Integer) freqbox.getValue();
-		setMinFreq(f);
 		String url = "http://" + textbox.getText();
 		if(URLs.contains(url)) {
 			updateWordsList();
