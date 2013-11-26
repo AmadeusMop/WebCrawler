@@ -15,7 +15,7 @@ public class Crawler {
 	private static final int MAX_CHILD_URLS = 30;
 	private static final String ANCHOR = "<a href=\"";
 	private static final int ANCHOR_LENGTH = ANCHOR.length();
-	private static final int THROTTLE = 500;
+	private static final int THROTTLE = 50;
 	
 	private URL url;
 	private Map<String, Integer> words;
@@ -47,17 +47,16 @@ public class Crawler {
 		if(words == null) {
 			words = new HashMap<String, Integer>();
 			List<URL> urls = getChildURLs();
-			int i = 1, size = urls.size()+1;
 			urls.add(0, url);
-			screen.showProgress("Crawled 0 of " + size + " URLs.");
+			int i = 1, size = urls.size();
 			for(URL u : urls) {
+				screen.showProgress(i, size, "Crawling " + i + " of " + size + " URLs");
 				try {
 					Thread.sleep(THROTTLE);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 				}
 				subCrawl(u);
-				screen.showProgress("Crawled " + i + " of " + size + " URLs.");
 				i++;
 			}
 		}

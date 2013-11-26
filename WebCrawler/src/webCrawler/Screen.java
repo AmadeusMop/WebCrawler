@@ -26,10 +26,12 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 
 
 public class Screen {
@@ -45,12 +47,14 @@ public class Screen {
 	private JPanel wordsList;
 	private JPanel errorSpace;
 	private JPanel resultsField;
+	private JPanel progressField;
 	private JCheckBox filterCheckbox;
 	private JButton submitButton;
 	private JButton clearButton;
 	private JSpinner freqbox;
 	private JTextField textbox;
 	private JScrollPane scrollPane;
+	private JProgressBar progressbar;
 	
 	private Map<String, Integer> words;
 	private Set<String> URLs;
@@ -79,6 +83,7 @@ public class Screen {
 		errorSpace = new JPanel();
 		resultsField = new JPanel();
 		resultsField.setLayout(new BoxLayout(resultsField, BoxLayout.Y_AXIS));
+		progressField = new JPanel();
 		filterCheckbox = new JCheckBox("Do not show common words", true);
 		submitButton = new JButton("Submit");
 		clearButton = new JButton("Clear All Results");
@@ -86,6 +91,9 @@ public class Screen {
 		textbox = new JTextField(30);
 		scrollPane = new JScrollPane(wordsList);
 		scrollPane.setPreferredSize(new Dimension(640, 480));
+		progressbar = new JProgressBar(0, 100);
+		progressbar.setValue(0);
+		progressbar.setStringPainted(true);
 		
 		submitButton.addActionListener(new URLSubmitButtonListener(this));
 		clearButton.addActionListener(new ClearButtonListener(this));
@@ -101,12 +109,14 @@ public class Screen {
 		optionsField.add(filterCheckbox);
 		resultsField.add(clearButton);
 		resultsField.add(scrollPane);
+		progressField.add(progressbar);
 		
 		panel.add(submitField);
 		panel.add(freqField);
 		panel.add(optionsField);
 		panel.add(errorSpace);
 		panel.add(resultsField);
+		panel.add(progressField);
 		
 		frame.setContentPane(panel);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -114,10 +124,14 @@ public class Screen {
 	}
 	
 	public void Update() {
-		frame.pack();
-		frame.validate();
-		frame.repaint();
-		frame.setVisible(true);
+		SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+				frame.pack();
+				frame.validate();
+				frame.repaint();
+				frame.setVisible(true);
+            }
+		});
 	}
 	
 	public void addWords(Map<String, Integer> hashMap) {
@@ -145,11 +159,13 @@ public class Screen {
 	
 	public void showError(String s) {
 		wordsList.removeAll();
+		progressbar.setVisible(false);
 		showMessage(s);
 	}
 	
 	private boolean updateWordsList() {
 		wordsList.removeAll();
+		wordsList.setVisible(false);
 		if(sortedWordsList == null) {
 			sortedWordsList = new ArrayList<String>(words.keySet());
 			ValueComparator vc = new ValueComparator(words, true);
@@ -159,8 +175,21 @@ public class Screen {
 		String s;
 		int v, minFreq = (Integer)freqbox.getValue();
 		boolean empty = true, b = filterCheckbox.isSelected();
+		int i = 100, max = 0;
 		
 		while(iter.hasNext()) {
+			max++;
+			if(words.get(iter.next()) < minFreq) break;
+		}
+		iter = sortedWordsList.iterator();
+		
+		progressbar.setString("Counting words...");
+		progressbar.setValue(i/max);
+		
+		while(iter.hasNext()) {
+			progressbar.setValue(i/max);
+			Update();
+			i += 100;
 			s = iter.next();
 			v = words.get(s);
 			if(v < minFreq) break;
@@ -169,15 +198,23 @@ public class Screen {
 			wordsList.add(new Label(Integer.toString(v)));
 			empty = false;
 		}
-
+		
+		wordsList.setVisible(true);
+		progressbar.setVisible(false);
 		Update();
 		return empty;
 	}
 	
-	public void showProgress(String s) {
-		showMessage(s);
+	public void showProgress(int current, int max, String message) {
+		if(message != null) progressbar.setString(message);
+		if(!progressbar.isVisible()) progressbar.setVisible(true);
+		final int progress = (current*100)/max;
+		SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                progressbar.setValue(progress);
+            }
+          });
 		Update();
-		//System.out.println(s);
 	}
 	
 	private void showMessage(String s, Color c) {
@@ -214,6 +251,7 @@ public class Screen {
 	}
 	
 	void clear() {
+		progressbar.setVisible(false);
 		wordsList.removeAll();
 		errorSpace.removeAll();
 		sortedWordsList = null;
