@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("unused")
 public class Crawler {
 	private static final int MAX_CHILD_URLS = 30;
 	private static final String ANCHOR = "<a href=\"";
@@ -18,7 +19,7 @@ public class Crawler {
 	private static final int THROTTLE = 50;
 	
 	private URL url;
-	private Map<String, Integer> words;
+	private Results results;
 	private List<String> disallowed;
 	private Screen screen;
 	
@@ -28,7 +29,7 @@ public class Crawler {
 	
 	public Crawler(URL paramURL, Screen screen) throws IOException {
 		this.url = paramURL;
-		this.words = null;
+		this.results = null;
 		this.disallowed = getDisallowedURLs();
 		this.screen = screen;
 	}
@@ -39,13 +40,13 @@ public class Crawler {
 	
 	public void setURL(URL paramURL) throws IOException {
 		this.url = paramURL;
-		this.words = null;
+		this.results = null;
 		this.disallowed = getDisallowedURLs();
 	}
 	
-	public Map<String, Integer> crawl() throws IOException {
-		if(words == null) {
-			words = new HashMap<String, Integer>();
+	public Results crawl() throws IOException {
+		if(results == null) {
+			results = new Results();
 			List<URL> urls = getChildURLs();
 			urls.add(0, url);
 			int i = 1, size = urls.size();
@@ -60,22 +61,14 @@ public class Crawler {
 				i++;
 			}
 		}
-		return words;
+		return results;
 	}
 	
 	private void subCrawl(URL paramURL) throws IOException {
 		List<String> wordsList = getWords(getHTML(paramURL.openStream()));
 		
 		for(String word : wordsList) {
-			addWord(word);
-		}
-	}
-	
-	private void addWord(String word) {
-		if(words.containsKey(word)) {
-			words.put(word, words.get(word)+1);
-		} else {
-			words.put(word, 1);
+			results.addWord(paramURL, word);
 		}
 	}
 	

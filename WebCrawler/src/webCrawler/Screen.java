@@ -1,5 +1,6 @@
 package webCrawler;
 
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -34,31 +35,34 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 
 
-public class Screen {
+public class Screen extends JFrame {
 	
-	private static final String[] stopWordsArray = {"", "a", "able", "about", "across", "after", "all", "almost", "also", "am", "among", "an", "and", "any", "are", "as", "at", "be", "because", "been", "but", "by", "can", "cannot", "could", "dear", "did", "do", "does", "either", "else", "ever", "every", "for", "from", "get", "got", "had", "has", "have", "he", "her", "hers", "him", "his", "how", "however", "i", "if", "in", "into", "is", "it", "its", "just", "least", "let", "like", "likely", "may", "me", "might", "most", "must", "my", "neither", "no", "nor", "not", "of", "off", "often", "on", "only", "or", "other", "our", "own", "rather", "said", "say", "says", "she", "should", "since", "so", "some", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "tis", "to", "too", "twas", "us", "wants", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would", "yet", "you", "your"};
-	private static final List<String> stopWords = Arrays.asList(stopWordsArray);
-
-	private JFrame frame;
+	private static final long serialVersionUID = 8471170549340567609L;
+	
 	private JPanel panel;
-	private JPanel submitField;
-	private JPanel freqField;
-	private JPanel optionsField;
-	private JPanel wordsList;
-	private JPanel errorSpace;
+	
+	private JPanel submitCard;
+	private JPanel progressCard;
+	private JPanel resultsCard;
+	
+	private JPanel URLSubmitField;
 	private JPanel resultsField;
-	private JPanel progressField;
-	private JCheckBox filterCheckbox;
-	private JButton submitButton;
+	private JPanel wordSubmitField;
+	private JPanel resultsList;
+	private JPanel errorSpace;
+	
+	private JButton URLSubmitButton;
+	private JButton wordSubmitButton;
 	private JButton clearButton;
-	private JSpinner freqbox;
-	private JTextField textbox;
+	private JTextField URLtextbox;
+	private JTextField wordtextbox;
+	
 	private JScrollPane scrollPane;
+	
 	private JProgressBar progressbar;
 	
-	private Map<String, Integer> words;
+	private Results results;
 	private Set<String> URLs;
-	private List<String> sortedWordsList;
 	
 	private Crawler crawler;
 	
@@ -68,141 +72,89 @@ public class Screen {
 	}
 	
 	public Screen() throws IOException {
+		//Non-GUI inits
 		crawler = new Crawler("http://en.wikipedia.org/", this);
-		words = new HashMap<String, Integer>();
+		results = null;
 		URLs = new HashSet<String>();
 		
-		frame = new JFrame("Web Reader");
-		panel = new JPanel();
-		panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-		submitField = new JPanel();
-		freqField = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 1));
-		optionsField = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 1));
-		wordsList = new JPanel(new GridLayout(0, 2));
-		((GridLayout) wordsList.getLayout()).setVgap(2);
+		//Main panel init
+		panel = new JPanel(new CardLayout());
+		
+		//Card inits
+		submitCard = new JPanel();
+		submitCard.setLayout(new BoxLayout(submitCard, BoxLayout.Y_AXIS));
+		progressCard = new JPanel();
+		resultsCard = new JPanel();
+		resultsCard.setLayout(new BoxLayout(resultsCard, BoxLayout.Y_AXIS));
+		
+		//TODO: Error space stuff
 		errorSpace = new JPanel();
+		
+		//Submit field-related inits
+		URLSubmitField = new JPanel();
+		URLSubmitField.setLayout(new BoxLayout(URLSubmitField, BoxLayout.X_AXIS));
+		URLtextbox = new JTextField(30);
+		URLtextbox.setText("http://en.wikipedia.org/wiki/Mandelbrot_Set");
+		URLSubmitButton = new JButton("Crawl!");
+		
+		//Results field-related inits
 		resultsField = new JPanel();
 		resultsField.setLayout(new BoxLayout(resultsField, BoxLayout.Y_AXIS));
-		progressField = new JPanel();
-		filterCheckbox = new JCheckBox("Do not show common words", true);
-		submitButton = new JButton("Submit");
-		clearButton = new JButton("Clear All Results");
-		freqbox = new JSpinner(new SpinnerNumberModel(10, 0, 999, 1));
-		textbox = new JTextField(30);
-		scrollPane = new JScrollPane(wordsList);
+		resultsList = new JPanel(new GridLayout(0, 2));
+		scrollPane = new JScrollPane(resultsList);
 		scrollPane.setPreferredSize(new Dimension(640, 480));
+		resultsField.setVisible(false);
+		wordSubmitField = new JPanel();
+		wordtextbox = new JTextField(30);
+		wordtextbox.setText("Mandelbrot");
+		wordSubmitButton = new JButton("Go!");
+		clearButton = new JButton("Clear Results");
+		
+		//Progress bar inits
 		progressbar = new JProgressBar(0, 100);
 		progressbar.setValue(0);
 		progressbar.setStringPainted(true);
 		
-		submitButton.addActionListener(new URLSubmitButtonListener(this));
+		//Action listener inits
+		URLSubmitButton.addActionListener(new URLSubmitButtonListener(this));
+		wordSubmitButton.addActionListener(new wordSubmitButtonListener(this));
 		clearButton.addActionListener(new ClearButtonListener(this));
 		
-		textbox.setText("en.wikipedia.org/wiki/Mandelbrot_Set");
-		
-		submitField.add(new Label("http://"));
-		submitField.add(textbox);
-		submitField.add(submitButton);
-		freqField.add(new Label("Hide words that appear fewer than"));
-		freqField.add(freqbox);
-		freqField.add(new Label("times"));
-		optionsField.add(filterCheckbox);
-		resultsField.add(clearButton);
+		//Adding components to fields
+		URLSubmitField.add(URLtextbox);
+		URLSubmitField.add(URLSubmitButton);
+		URLSubmitField.add(clearButton);
 		resultsField.add(scrollPane);
-		progressField.add(progressbar);
 		
-		panel.add(submitField);
-		panel.add(freqField);
-		panel.add(optionsField);
-		panel.add(errorSpace);
-		panel.add(resultsField);
-		panel.add(progressField);
+		//Adding fields to cards
+		submitCard.add(URLSubmitField);
+		resultsCard.add(wordSubmitField);
+		resultsCard.add(resultsField);
+		progressCard.add(progressbar);
 		
-		frame.setContentPane(panel);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setPreferredSize(new Dimension(640, 480));
+		//Adding cards to panel
+		panel.add(submitCard);
+		panel.add(progressCard);
+		
+		setContentPane(panel);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 	
 	public void Update() {
 		SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-				frame.pack();
-				frame.validate();
-				frame.repaint();
-				frame.setVisible(true);
+				pack();
+				validate();
+				repaint();
+				setVisible(true);
             }
 		});
 	}
 	
-	public void addWords(Map<String, Integer> hashMap) {
-		errorSpace.removeAll();
-		sortedWordsList = null;
-		
-		String s;
-		int n;
-		Iterator<String> iter = hashMap.keySet().iterator();
-		
-		while(iter.hasNext()) {
-			s = iter.next();
-			n = hashMap.get(s);
-			if(words.containsKey(s)) {
-				words.put(s, words.get(s) + n);
-			} else {
-				words.put(s, n);
-			}
-		}
-		
-		if(updateWordsList()) {
-			showError("No words found.");
-		}
-	}
-	
 	public void showError(String s) {
-		wordsList.removeAll();
+		resultsList.removeAll();
 		progressbar.setVisible(false);
 		showMessage(s);
-	}
-	
-	private boolean updateWordsList() {
-		wordsList.removeAll();
-		wordsList.setVisible(false);
-		if(sortedWordsList == null) {
-			sortedWordsList = new ArrayList<String>(words.keySet());
-			ValueComparator vc = new ValueComparator(words, true);
-			Collections.sort(sortedWordsList, vc);
-		}
-		Iterator<String> iter = sortedWordsList.iterator();
-		String s;
-		int v, minFreq = (Integer)freqbox.getValue();
-		boolean empty = true, b = filterCheckbox.isSelected();
-		int i = 100, max = 0;
-		
-		while(iter.hasNext()) {
-			max++;
-			if(words.get(iter.next()) < minFreq) break;
-		}
-		iter = sortedWordsList.iterator();
-		
-		progressbar.setString("Counting words...");
-		progressbar.setValue(i/max);
-		
-		while(iter.hasNext()) {
-			progressbar.setValue(i/max);
-			Update();
-			i += 100;
-			s = iter.next();
-			v = words.get(s);
-			if(v < minFreq) break;
-			if(b && stopWords.contains(s)) continue;
-			wordsList.add(new Label(s));
-			wordsList.add(new Label(Integer.toString(v)));
-			empty = false;
-		}
-		
-		wordsList.setVisible(true);
-		progressbar.setVisible(false);
-		Update();
-		return empty;
 	}
 	
 	public void showProgress(int current, int max, String message) {
@@ -228,11 +180,15 @@ public class Screen {
 		showMessage(s, Color.red);
 	}
 	
-	void submit() throws IOException {
+	void submitWord() {
+		String word = wordtextbox.getText().toLowerCase();
+	}
+	
+	void submitURL() throws IOException {
 		showMessage("");
-		String url = "http://" + textbox.getText();
+		String url = URLtextbox.getText();
 		if(URLs.contains(url)) {
-			updateWordsList();
+			//updateResults();
 			return;
 		}
 		
@@ -240,7 +196,7 @@ public class Screen {
 		
 		try {
 			crawler.setURL(url);
-			addWords(crawler.crawl());
+			//addWords(crawler.crawl());
 		} catch(IllegalArgumentException e) {
 			showError("\"" + url + "\" is not a valid URL.");
 		} catch(IOException e) {
@@ -252,10 +208,9 @@ public class Screen {
 	
 	void clear() {
 		progressbar.setVisible(false);
-		wordsList.removeAll();
+		resultsList.removeAll();
 		errorSpace.removeAll();
-		sortedWordsList = null;
-		words = new HashMap<String, Integer>();
+		results = null;
 		URLs = new HashSet<String>();
 	}
 }
@@ -295,6 +250,18 @@ class ClearButtonListener implements ActionListener {
 	}
 }
 
+class wordSubmitButtonListener implements ActionListener {
+	Screen screen;
+	
+	public wordSubmitButtonListener(Screen screen) {
+		this.screen = screen;
+	}
+	
+	public void actionPerformed(ActionEvent event) {
+		screen.submitWord();
+	}
+}
+
 class URLSubmitButtonListener implements ActionListener {
 	Screen screen;
 	
@@ -304,7 +271,7 @@ class URLSubmitButtonListener implements ActionListener {
 	
 	public void actionPerformed(ActionEvent event) {
 		try {
-			screen.submit();
+			screen.submitURL();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
