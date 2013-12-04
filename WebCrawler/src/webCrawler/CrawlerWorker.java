@@ -11,60 +11,68 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.swing.JProgressBar;
+import javax.swing.SwingWorker;
+
 @SuppressWarnings("unused")
-public class Crawler {
+public class CrawlerWorker extends SwingWorker<Results, String> {
+	private static void failIfInterrupted() throws InterruptedException {
+	    if (Thread.currentThread().isInterrupted()) {
+	      throw new InterruptedException("Interrupted while crawling URLs");
+	    }
+	}
+  
 	private static final int MAX_CHILD_URLS = 30;
 	private static final String ANCHOR = "<a href=\"";
 	private static final int ANCHOR_LENGTH = ANCHOR.length();
-	private static final int THROTTLE = 50;
+	private static final int THROTTLE = 5000;
 	
-	private URL url;
-	private Results results;
+	private final URL url;
+	private final JProgressBar progressBar;
+	//private final JTextArea messagesTextArea; //TBD
 	private List<String> disallowed;
-	private Screen screen;
 	
-	public Crawler(String paramURL, Screen screen) throws IOException {
-		this(new URL(paramURL), screen);
+	public CrawlerWorker(final String paramURL, final JProgressBar paramProgressBar) throws IOException {
+		this(new URL(paramURL), paramProgressBar);
 	}
 	
-	public Crawler(URL paramURL, Screen screen) throws IOException {
+	public CrawlerWorker(final URL paramURL, final JProgressBar paramProgressBar) throws IOException {
 		this.url = paramURL;
-		this.results = null;
-		this.disallowed = getDisallowedURLs();
-		this.screen = screen;
-	}
-	
-	public void setURL(String paramURL) throws IOException {
-		setURL(new URL(paramURL));
-	}
-	
-	public void setURL(URL paramURL) throws IOException {
-		this.url = paramURL;
-		this.results = null;
+		this.progressBar = paramProgressBar;
 		this.disallowed = getDisallowedURLs();
 	}
 	
-	public Results crawl() throws IOException {
-		if(results == null) {
-			results = new Results();
-			List<URL> urls = getChildURLs();
-			urls.add(0, url);
-			int i = 1, size = urls.size();
-			for(URL u : urls) {
-				screen.showProgress(i, size, "Crawling " + i + " of " + size + " URLs");
-				try {
-					Thread.sleep(THROTTLE);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-				subCrawl(u);
-				i++;
+	protected Results doInBackground() throws IOException, InterruptedException  {
+		final Results results = new Results();
+		setProgress(0);
+		publish("Initializing...");
+		List<URL> urls = getChildURLs();
+		urls.add(0, url);
+		int i = 1, size = urls.size();
+		CrawlerWorker.failIfInterrupted();
+		for(final URL u : urls) {
+			CrawlerWorker.failIfInterrupted();
+			publish("Crawling " + i + " of " + size + " URLs");
+			setProgress((i*100)/size);
+			try {
+				Thread.sleep(THROTTLE);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 			}
+			subCrawl(u, results);
+			i++;
 		}
 		return results;
 	}
 	
-	private void subCrawl(URL paramURL) throws IOException {
+	protected void process(final List<String> chunks) {
+		for(final String string: chunks) {
+			progressBar.setString(string);
+		}
+		//TODO: Message output box
+	}
+	
+	private void subCrawl(URL paramURL, Results results) throws IOException {
 		List<String> wordsList = getWords(getHTML(paramURL.openStream()));
 		
 		for(String word : wordsList) {

@@ -8,6 +8,8 @@ import java.awt.GridLayout;
 import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -22,7 +24,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 
+import javax.swing.Action;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -36,6 +40,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.SwingWorker.StateValue;
 
 
 public class Screen extends JFrame {
@@ -68,16 +73,8 @@ public class Screen extends JFrame {
 	
 	private Results results;
 	
-	private Crawler crawler;
-	
-	public Screen(Crawler p) throws IOException {
-		this();
-		crawler = p;
-	}
-	
 	public Screen() throws IOException {
 		//Non-GUI inits
-		crawler = new Crawler("http://en.wikipedia.org/", this);
 		results = null;
 		
 		//Main panel init
@@ -165,7 +162,6 @@ public class Screen extends JFrame {
 		if(message != null) progressbar.setString(message);
 		int progress = (current*100)/max;
 		progressbar.setValue(progress);
-		update(getGraphics());
 		Update();
 	}
 	
@@ -208,9 +204,10 @@ public class Screen extends JFrame {
 		Update();
 		showProgress(0, 1, "Initializing...");
 		String url = URLtextbox.getText();
+		final CrawlerWorker crawler;
 		
 		try {
-			crawler.setURL(url);
+			crawler = new CrawlerWorker(url, progressbar);
 		} catch(IllegalArgumentException e) {
 			showError("\"" + url + "\" is not a valid URL.");
 			return;
@@ -219,9 +216,40 @@ public class Screen extends JFrame {
 			throw e;
 		}
 		
-		results = crawler.crawl();
-		nextCard();
-		Update();
+		crawler.addPropertyChangeListener(new PropertyChangeListener() {
+	      @Override
+	      public void propertyChange(final PropertyChangeEvent event) {
+	        switch (event.getPropertyName()) {
+	        case "progress":
+	          progressbar.setIndeterminate(false);
+	          progressbar.setValue((Integer) event.getNewValue());
+	          break;
+	        case "state":
+	          switch ((StateValue) event.getNewValue()) {
+	          case DONE:
+	            try {
+					results = crawler.get();
+					nextCard();
+					Update();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	            break;
+	          case STARTED:
+	          case PENDING:
+	            progressbar.setVisible(true);
+	            progressbar.setIndeterminate(true);
+	            break;
+	          }
+	          break;
+	        }
+	      }
+	    });
+	    crawler.execute();
 	}
 	
 	void clear() {
