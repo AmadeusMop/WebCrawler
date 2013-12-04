@@ -141,14 +141,10 @@ public class Screen extends JFrame {
 	}
 	
 	public void Update() {
-		SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-				pack();
-				validate();
-				repaint();
-				setVisible(true);
-            }
-		});
+		pack();
+		validate();
+		repaint();
+		setVisible(true);
 	}
 	
 	public void showError(String s) {
