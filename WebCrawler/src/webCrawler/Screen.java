@@ -9,6 +9,7 @@ import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +23,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -33,6 +35,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 
 public class Screen extends JFrame {
@@ -40,6 +43,7 @@ public class Screen extends JFrame {
 	private static final long serialVersionUID = 8471170549340567609L;
 	
 	private JPanel panel;
+	private CardLayout cardLayout;
 	
 	private JPanel submitCard;
 	private JPanel progressCard;
@@ -48,6 +52,7 @@ public class Screen extends JFrame {
 	private JPanel URLSubmitField;
 	private JPanel resultsField;
 	private JPanel wordSubmitField;
+	private JPanel progressField;
 	private JPanel resultsList;
 	private JPanel errorSpace;
 	
@@ -62,7 +67,6 @@ public class Screen extends JFrame {
 	private JProgressBar progressbar;
 	
 	private Results results;
-	private Set<String> URLs;
 	
 	private Crawler crawler;
 	
@@ -75,14 +79,14 @@ public class Screen extends JFrame {
 		//Non-GUI inits
 		crawler = new Crawler("http://en.wikipedia.org/", this);
 		results = null;
-		URLs = new HashSet<String>();
 		
 		//Main panel init
-		panel = new JPanel(new CardLayout());
+		cardLayout = new CardLayout();
+		panel = new JPanel(cardLayout);
 		
 		//Card inits
 		submitCard = new JPanel();
-		submitCard.setLayout(new BoxLayout(submitCard, BoxLayout.Y_AXIS));
+		submitCard.setLayout(new FlowLayout(FlowLayout.CENTER));
 		progressCard = new JPanel();
 		resultsCard = new JPanel();
 		resultsCard.setLayout(new BoxLayout(resultsCard, BoxLayout.Y_AXIS));
@@ -99,11 +103,9 @@ public class Screen extends JFrame {
 		
 		//Results field-related inits
 		resultsField = new JPanel();
-		resultsField.setLayout(new BoxLayout(resultsField, BoxLayout.Y_AXIS));
 		resultsList = new JPanel(new GridLayout(0, 2));
 		scrollPane = new JScrollPane(resultsList);
-		scrollPane.setPreferredSize(new Dimension(640, 480));
-		resultsField.setVisible(false);
+		scrollPane.setPreferredSize(new Dimension(740, 480));
 		wordSubmitField = new JPanel();
 		wordtextbox = new JTextField(30);
 		wordtextbox.setText("Mandelbrot");
@@ -111,6 +113,7 @@ public class Screen extends JFrame {
 		clearButton = new JButton("Clear Results");
 		
 		//Progress bar inits
+		progressField = new JPanel();
 		progressbar = new JProgressBar(0, 100);
 		progressbar.setValue(0);
 		progressbar.setStringPainted(true);
@@ -123,21 +126,27 @@ public class Screen extends JFrame {
 		//Adding components to fields
 		URLSubmitField.add(URLtextbox);
 		URLSubmitField.add(URLSubmitButton);
-		URLSubmitField.add(clearButton);
+		progressField.add(progressbar);
+		wordSubmitField.add(wordtextbox);
+		wordSubmitField.add(wordSubmitButton);
+		wordSubmitField.add(clearButton);
 		resultsField.add(scrollPane);
 		
 		//Adding fields to cards
 		submitCard.add(URLSubmitField);
 		resultsCard.add(wordSubmitField);
 		resultsCard.add(resultsField);
-		progressCard.add(progressbar);
+		progressCard.add(progressField);
 		
 		//Adding cards to panel
 		panel.add(submitCard);
 		panel.add(progressCard);
+		panel.add(resultsCard);
 		
 		setContentPane(panel);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setResizable(false);
+		setVisible(true);
 	}
 	
 	public void Update() {
@@ -149,19 +158,14 @@ public class Screen extends JFrame {
 	
 	public void showError(String s) {
 		resultsList.removeAll();
-		progressbar.setVisible(false);
 		showMessage(s);
 	}
 	
 	public void showProgress(int current, int max, String message) {
 		if(message != null) progressbar.setString(message);
-		if(!progressbar.isVisible()) progressbar.setVisible(true);
-		final int progress = (current*100)/max;
-		SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                progressbar.setValue(progress);
-            }
-          });
+		int progress = (current*100)/max;
+		progressbar.setValue(progress);
+		update(getGraphics());
 		Update();
 	}
 	
@@ -176,38 +180,55 @@ public class Screen extends JFrame {
 		showMessage(s, Color.red);
 	}
 	
-	void submitWord() {
-		String word = wordtextbox.getText().toLowerCase();
+	void nextCard() {
+		cardLayout.next(panel);
 	}
 	
-	void submitURL() throws IOException {
-		showMessage("");
-		String url = URLtextbox.getText();
-		if(URLs.contains(url)) {
-			//updateResults();
-			return;
+	void submitWord() {
+		resultsList.removeAll();
+		resultsList.add(new Label("URL"));
+		resultsList.add(new Label("Frequency"));
+		String word = wordtextbox.getText().toLowerCase();
+		FrequencyMap fr = new FrequencyMap();
+		for(URL url : results.getURLs()) {
+			fr.put(url.toString(), results.get(url).get(word));
 		}
-		
-		URLs.add(url);
-		
-		try {
-			crawler.setURL(url);
-			//addWords(crawler.crawl());
-		} catch(IllegalArgumentException e) {
-			showError("\"" + url + "\" is not a valid URL.");
-		} catch(IOException e) {
-			showError(e.toString());
-			throw e;
+		ValueComparator vc = new ValueComparator(fr, true);
+		List<String> urlstr = new ArrayList<String>(fr.keySet());
+		Collections.sort(urlstr, vc);
+		for(String str : urlstr) {
+			resultsList.add(new Label(str));
+			resultsList.add(new Label(Integer.toString(fr.get(str))));
 		}
 		Update();
 	}
 	
+	void submitURL() throws IOException {
+		nextCard();
+		Update();
+		showProgress(0, 1, "Initializing...");
+		String url = URLtextbox.getText();
+		
+		try {
+			crawler.setURL(url);
+		} catch(IllegalArgumentException e) {
+			showError("\"" + url + "\" is not a valid URL.");
+			return;
+		} catch(IOException e) {
+			showError(e.toString());
+			throw e;
+		}
+		
+		results = crawler.crawl();
+		nextCard();
+		Update();
+	}
+	
 	void clear() {
-		progressbar.setVisible(false);
+		cardLayout.first(panel);
 		resultsList.removeAll();
 		errorSpace.removeAll();
 		results = null;
-		URLs = new HashSet<String>();
 	}
 }
 

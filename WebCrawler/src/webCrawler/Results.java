@@ -1,28 +1,29 @@
 package webCrawler;
 
+import java.util.List;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Results {
-	private Map<URL, FrequencyMap> urls;
+public class Results extends HashMap<URL, FrequencyMap> {
 	
 	public Results() {
-		urls = new HashMap<URL, FrequencyMap>();
+		super();
 	}
 	
 	public void addURL(URL url) {
-		if(urls.containsKey(url)) throw new IllegalArgumentException(url.toString());
-		urls.put(url, new FrequencyMap());
+		if(containsKey(url)) throw new IllegalArgumentException(url.toString());
+		put(url, new FrequencyMap());
 	}
 	
 	public void addWord(URL url, String s) {
-		if(!urls.containsKey(url)) addURL(url);
-		FrequencyMap m = urls.get(url);
+		if(!containsKey(url)) addURL(url);
+		FrequencyMap m = get(url);
 		m.increment(s);
 	}
 	
-	public Map<URL, FrequencyMap> getURLs() {
-		return urls;
+	public List<URL> getURLs() {
+		return new ArrayList(keySet());
 	}
 }
