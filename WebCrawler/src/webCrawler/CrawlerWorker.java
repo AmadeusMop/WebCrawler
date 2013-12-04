@@ -50,16 +50,15 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 		urls.add(0, url);
 		int i = 1, size = urls.size();
 		CrawlerWorker.failIfInterrupted();
+		SleepThread st;
 		for(final URL u : urls) {
 			CrawlerWorker.failIfInterrupted();
 			publish("Crawling " + i + " of " + size + " URLs");
-			setProgress((i*100)/size);
-			try {
-				Thread.sleep(THROTTLE);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
+			//setProgress((i*100)/size);
+			st = new SleepThread(THROTTLE, this);
+			st.start();
 			subCrawl(u, results);
+			st.join();
 			i++;
 		}
 		return results;
@@ -161,5 +160,31 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 			}
 		}
 		return output;
+	}
+	
+	void setP(int i) {
+		setProgress(i);
+	}
+}
+
+class SleepThread extends Thread {
+	private int time;
+	private CrawlerWorker cw;
+	
+	public SleepThread(int t, CrawlerWorker c) {
+		time = t/100;
+		cw = c;
+	}
+	
+	public void run() {
+		try {
+			for(int i = 1; i <= 100; i++) {
+				Thread.sleep(time);
+				cw.setP(i);
+			}
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }
