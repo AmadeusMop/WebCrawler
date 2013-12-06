@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 
 import javax.swing.JProgressBar;
 import javax.swing.SwingWorker;
+import javax.swing.SwingWorker.StateValue;
 
 @SuppressWarnings("unused")
 public class CrawlerWorker extends SwingWorker<Results, String> {
@@ -44,7 +45,6 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 	
 	protected Results doInBackground() throws IOException, InterruptedException  {
 		final Results results = new Results();
-		setProgress(0);
 		publish("Initializing...");
 		List<URL> urls = getChildURLs();
 		urls.add(0, url);
@@ -53,8 +53,8 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 		SleepThread st;
 		for(final URL u : urls) {
 			CrawlerWorker.failIfInterrupted();
+			firePropertyChange("progress", -1, 0);
 			publish("Crawling " + i + " of " + size + " URLs");
-			//setProgress((i*100)/size);
 			st = new SleepThread(THROTTLE, this);
 			st.start();
 			subCrawl(u, results);
@@ -161,27 +161,31 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 		}
 		return output;
 	}
-	
-	void setP(int i) {
-		setProgress(i);
-	}
 }
 
 class SleepThread extends Thread {
-	private int time;
+	private int time, intervals;
 	private CrawlerWorker cw;
 	
-	public SleepThread(int t, CrawlerWorker c) {
-		time = t/100;
+	public SleepThread(int t, int i, CrawlerWorker c) {
+		time = t;
+		intervals = i;
 		cw = c;
 	}
 	
+	public SleepThread(int t, CrawlerWorker c) {
+		this(t, 100, c); //Default # of intervals is 100
+	}
+	
 	public void run() {
+		int itime = time/intervals;
+		int step = 100/intervals;
 		try {
-			for(int i = 1; i <= 100; i++) {
-				Thread.sleep(time);
-				cw.setP(i);
+			for(int i = 0; i <= 100; i += step) {
+				cw.firePropertyChange("progress", 0, i);
+				Thread.sleep(itime);
 			}
+			cw.firePropertyChange("state", StateValue.STARTED, StateValue.PENDING);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
