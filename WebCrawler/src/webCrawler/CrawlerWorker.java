@@ -111,6 +111,7 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 			s = s.toLowerCase();
 			s = s.replace("\n", " ");
 			s = s.replaceAll("<script*?/script>", "");
+			s = s.replaceAll("<title*?/title>", "");
 			s = s.replaceAll("<.*?>", "");
 			
 			for(String word : s.split("[^a-zA-Z]+")) {
@@ -140,6 +141,7 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 	private List<URL> getChildURLs() throws IOException {
 		String s = getHTML(), t;
 		List<URL> output = new ArrayList<URL>();
+		URL u;
 		int index = 0;
 		for(int i = 0; i < MAX_CHILD_URLS; i++) {
 			index = s.indexOf(ANCHOR, index+ANCHOR_LENGTH);
@@ -148,14 +150,10 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 			if(s.charAt(index+ANCHOR_LENGTH) == '#') continue;
 			
 			t = s.substring(index+ANCHOR_LENGTH, s.indexOf('\"', index+ANCHOR_LENGTH));
-			if(!disallowed.contains(t)) {
-				if(t.startsWith("http://")) {
-					output.add(new URL(t));
-				} else {
-					output.add(new URL(url.getProtocol() + "://" + url.getHost() + t));
-				}
+			u = new URL((t.startsWith("http://") ? t : url.getProtocol() + "://" + url.getHost() + t));
+			if(!(disallowed.contains(u) || output.contains(u))) {
+				output.add(u);
 			} else {
-				System.out.println(t);
 				i--;
 			}
 		}
