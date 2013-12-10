@@ -45,7 +45,7 @@ public class Screen extends JFrame {
 	private JPanel wordSubmitField;
 	private JPanel progressField;
 	private JPanel resultsList;
-	private JPanel errorSpace;
+	private JPanel errorField;
 	
 	private JButton URLSubmitButton;
 	private JButton wordSubmitButton;
@@ -59,7 +59,9 @@ public class Screen extends JFrame {
 	
 	private Results results;
 	
-	public Screen() throws IOException {
+	public Screen(String title) throws IOException {
+		super(title);
+		
 		//Non-GUI inits
 		results = null;
 		
@@ -69,19 +71,18 @@ public class Screen extends JFrame {
 		
 		//Card inits
 		submitCard = new JPanel();
-		submitCard.setLayout(new FlowLayout(FlowLayout.CENTER));
+		submitCard.setLayout(new BoxLayout(submitCard, BoxLayout.Y_AXIS));
 		progressCard = new JPanel();
 		resultsCard = new JPanel();
 		resultsCard.setLayout(new BoxLayout(resultsCard, BoxLayout.Y_AXIS));
 		
 		//TODO: Error space stuff
-		errorSpace = new JPanel();
+		errorField = new JPanel();
 		
 		//Submit field-related inits
 		URLSubmitField = new JPanel();
-		URLSubmitField.setLayout(new BoxLayout(URLSubmitField, BoxLayout.X_AXIS));
 		URLtextbox = new JTextField(30);
-		URLtextbox.setText("http://en.wikipedia.org/wiki/Mandelbrot_Set");
+		URLtextbox.setText("");
 		URLSubmitButton = new JButton("Crawl!");
 		
 		//Results field-related inits
@@ -91,7 +92,7 @@ public class Screen extends JFrame {
 		scrollPane.setPreferredSize(new Dimension(740, 480));
 		wordSubmitField = new JPanel();
 		wordtextbox = new JTextField(30);
-		wordtextbox.setText("Mandelbrot");
+		wordtextbox.setText("");
 		wordSubmitButton = new JButton("Go!");
 		clearButton = new JButton("Clear Results");
 		
@@ -117,6 +118,7 @@ public class Screen extends JFrame {
 		
 		//Adding fields to cards
 		submitCard.add(URLSubmitField);
+		submitCard.add(errorField);
 		resultsCard.add(wordSubmitField);
 		resultsCard.add(resultsField);
 		progressCard.add(progressField);
@@ -139,11 +141,6 @@ public class Screen extends JFrame {
 		setVisible(true);
 	}
 	
-	public void showError(String s) {
-		resultsList.removeAll();
-		showMessage(s);
-	}
-	
 	public void showProgress(int current, int max, String message) {
 		if(message != null) progressbar.setString(message);
 		int progress = (current*100)/max;
@@ -151,15 +148,16 @@ public class Screen extends JFrame {
 		Update();
 	}
 	
-	private void showMessage(String s, Color c) {
-		errorSpace.removeAll();
+	private void showError(String s, Color c) {
+		errorField.removeAll();
+		cardLayout.first(panel);
 		Label l = new Label(s);
 		l.setForeground(c);
-		errorSpace.add(l);
+		errorField.add(l);
 	}
 	
-	private void showMessage(String s) {
-		showMessage(s, Color.red);
+	private void showError(String s) {
+		showError(s, Color.red);
 	}
 	
 	void nextCard() {
@@ -219,10 +217,16 @@ public class Screen extends JFrame {
 					Update();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
 				} catch (ExecutionException e) {
 					// TODO Auto-generated catch block
-					e.printStackTrace();
+					Throwable cause = e.getCause();
+					if(cause instanceof IOException) {
+						e.printStackTrace();
+						showError(cause.getMessage());
+						Update();
+					} else {
+						e.printStackTrace();
+					}
 				}
 	            break;
 	          case STARTED:
@@ -235,13 +239,13 @@ public class Screen extends JFrame {
 	        }
 	      }
 	    });
-	    crawler.execute();
+		crawler.execute();
 	}
 	
 	void clear() {
 		cardLayout.first(panel);
 		resultsList.removeAll();
-		errorSpace.removeAll();
+		errorField.removeAll();
 		results = null;
 	}
 }

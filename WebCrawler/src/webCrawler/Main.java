@@ -11,7 +11,7 @@ public class Main {
             public void run() {
 				Screen s;
 				try {
-					s = new Screen();
+					s = new Screen("Web Crawler");
 					s.Update();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block

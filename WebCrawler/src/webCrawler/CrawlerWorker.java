@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -112,7 +113,9 @@ public class CrawlerWorker extends SwingWorker<Results, String> {
 			s = s.replace("\n", " ");
 			s = s.replaceAll("<script*?/script>", "");
 			s = s.replaceAll("<title*?/title>", "");
+			s = s.replaceAll("<div class=\"printfooter\".*?/div>", "");
 			s = s.replaceAll("<.*?>", "");
+			int i = 0;
 			
 			for(String word : s.split("[^a-zA-Z]+")) {
 				wordList.add(word.toLowerCase());
